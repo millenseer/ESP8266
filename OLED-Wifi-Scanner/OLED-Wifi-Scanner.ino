@@ -6,7 +6,7 @@
 // History : V1.00 2014-04-21 - First release
 //         : V1.11 2015-09-23 - rewrite for ESP8266 target
 //         : V1.20 2016-07-13 - Added new OLED Library and NeoPixelBus
-//         : V1.3  2016-09-16 - Rewrote everything, just a plain Wifi-Scanner showing all available AP on OLED.
+//         : V1.3  2016-09-16 - Rewrote everything, just a plain Wifi-Scanner showing all available AP on OLED. Millenseer.
 //
 // **********************************************************************************
 
@@ -195,6 +195,8 @@ void drawFrameNet(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, in
   display->setTextAlignment(TEXT_ALIGN_LEFT);
   display->setFont(Roboto_Condensed_12);
 
+  // As the display has only space for 4 lines of text (WIFI_DISPLAY_NET), I am rotating the list
+  // The timer increases currentNumberOfNetwork with WIFI_DISPLAY_NET items
 
   for (int i = 0; i < WIFI_DISPLAY_NET; i++) {
     // Print SSID and RSSI for each network found
@@ -249,7 +251,7 @@ int numberOfFrames = 1;
   Purpose : Called by ticker to tell main loop we need to update data
   Input   : -
   Output  : -
-  Comments: -
+  Comments: Timer to update the list and trigger the Wifi-Rescan
   ====================================================================== */
 void setReadyForUpdate() {
   Serial.println("Setting readyForUpdate to true");
@@ -336,9 +338,10 @@ void setup()
   Serial.println(F("Setup done"));
   drawProgress(&display, 100, F("Setup Done"));
 
-
+  // setup the OLED-display UI
   if (has_display) {
     ui.setTargetFPS(30);
+    // Dont use the famous frame slider here
     //ui.setFrameAnimation(SLIDE_LEFT);
     ui.disableAutoTransition();
     ui.setFrames(frames, numberOfFrames);
@@ -346,7 +349,9 @@ void setup()
     display.flipScreenVertically();
   }
 
+  // Setting Timer for updating the WIfi-list display
   ticker.attach(5, setReadyForUpdate);
+  // Setting Timer to rescan Wifi-list
   tickerWifi.attach(60, setReadyForWifiUpdate);
 }
 
