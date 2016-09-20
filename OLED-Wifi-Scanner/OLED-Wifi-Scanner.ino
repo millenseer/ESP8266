@@ -6,7 +6,6 @@
 // History : V1.00 2014-04-21 - First release
 //         : V1.11 2015-09-23 - rewrite for ESP8266 target
 //         : V1.20 2016-07-13 - Added new OLED Library and NeoPixelBus
-//         : V1.3  2016-09-16 - Rewrote everything, just a plain Wifi-Scanner showing all available AP on OLED. Millenseer.
 //
 // **********************************************************************************
 
@@ -64,7 +63,11 @@ bool readyForWifiUpdate = false;  // flag to launch update (I2CScan)
 bool has_display          = false;  // if I2C display detected
 uint8_t NumberOfI2CDevice = 0;      // number of I2C device detected
 int8_t NumberOfNetwork    = 0;      // number of wifi networks detected
-int8_t currentNumberOfNetwork    = 0;      // currently start of AP to list
+
+int8_t currentNumberOfNetwork    = 0;      // number of wifi networks detected
+bool startNetwork = true;
+int8_t delayCounter    = 0;      // number of wifi networks detected
+int8_t delayCounterMax    = 126;      // number of wifi networks detected
 
 
 char i2c_dev[I2C_DISPLAY_DEVICE][32]; // Array on string displayed
@@ -195,8 +198,6 @@ void drawFrameNet(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, in
   display->setTextAlignment(TEXT_ALIGN_LEFT);
   display->setFont(Roboto_Condensed_12);
 
-  // As the display has only space for 4 lines of text (WIFI_DISPLAY_NET), I am rotating the list
-  // The timer increases currentNumberOfNetwork with WIFI_DISPLAY_NET items
 
   for (int i = 0; i < WIFI_DISPLAY_NET; i++) {
     // Print SSID and RSSI for each network found
@@ -251,7 +252,7 @@ int numberOfFrames = 1;
   Purpose : Called by ticker to tell main loop we need to update data
   Input   : -
   Output  : -
-  Comments: Timer to update the list and trigger the Wifi-Rescan
+  Comments: -
   ====================================================================== */
 void setReadyForUpdate() {
   Serial.println("Setting readyForUpdate to true");
@@ -290,6 +291,26 @@ void wifiscan() {
 
 }
 
+void displayWifiLogo() {
+  if (has_display) {
+    Serial.println(F("Display found"));
+    // initialize dispaly
+    display.init();
+    display.flipScreenVertically();
+    display.clear();
+    display.setFont(Roboto_Condensed_Bold_Bold_16);
+    display.setTextAlignment(TEXT_ALIGN_CENTER);
+    display.drawXbm( (128 - WiFi_width) / 2, 0, WiFi_width, WiFi_height, WiFi_bits);
+    display.drawString( 64, WiFi_height + 4, "Wifi scanner");
+    display.drawString( 64, WiFi_height + 4, "Wifi scanner");
+    display.display();
+    display.setContrast(255);
+    delay(1000);
+  }
+
+}
+
+
 /* ======================================================================
   Function: setup
   Purpose : you should know ;-)
@@ -314,21 +335,7 @@ void setup()
     }
   }
 
-  if (has_display) {
-    Serial.println(F("Display found"));
-    // initialize dispaly
-    display.init();
-    display.flipScreenVertically();
-    display.clear();
-    display.drawXbm( (128 - WiFi_width) / 2, 0, WiFi_width, WiFi_height, WiFi_bits);
-    display.drawString( 64, WiFi_height + 4, "Wifi scanner");
-    display.display();
-
-    display.setFont(ArialMT_Plain_10);
-    display.setTextAlignment(TEXT_ALIGN_CENTER);
-    display.setContrast(255);
-    delay(500);
-  }
+  displayWifiLogo();
 
   // Set WiFi to station mode and disconnect from an AP if it was previously connected
   WiFi.mode(WIFI_STA);
@@ -338,10 +345,9 @@ void setup()
   Serial.println(F("Setup done"));
   drawProgress(&display, 100, F("Setup Done"));
 
-  // setup the OLED-display UI
+
   if (has_display) {
     ui.setTargetFPS(30);
-    // Dont use the famous frame slider here
     //ui.setFrameAnimation(SLIDE_LEFT);
     ui.disableAutoTransition();
     ui.setFrames(frames, numberOfFrames);
@@ -349,9 +355,7 @@ void setup()
     display.flipScreenVertically();
   }
 
-  // Setting Timer for updating the WIfi-list display
   ticker.attach(5, setReadyForUpdate);
-  // Setting Timer to rescan Wifi-list
   tickerWifi.attach(60, setReadyForWifiUpdate);
 }
 
@@ -381,8 +385,9 @@ void loop()
   }
   if (readyForWifiUpdate) {
     readyForWifiUpdate = false;
-    currentNumberOfNetwork = 0;
     wifiscan();
+    displayWifiLogo();
+    currentNumberOfNetwork = 0;
   }
 }
 
